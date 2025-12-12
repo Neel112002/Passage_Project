@@ -12,6 +12,8 @@ class ChatConversation {
   final DateTime lastAt;
   final String productName;
   final String productImageUrl;
+  // Unread counts per user: { userId: count }
+  final Map<String, int> unreadCounts;
 
   const ChatConversation({
     required this.id,
@@ -23,11 +25,13 @@ class ChatConversation {
     required this.lastAt,
     required this.productName,
     required this.productImageUrl,
+    this.unreadCounts = const {},
   });
 
   ChatConversation copyWith({
     String? lastMessage,
     DateTime? lastAt,
+    Map<String, int>? unreadCounts,
   }) => ChatConversation(
         id: id,
         productId: productId,
@@ -38,6 +42,7 @@ class ChatConversation {
         lastAt: lastAt ?? this.lastAt,
         productName: productName,
         productImageUrl: productImageUrl,
+        unreadCounts: unreadCounts ?? this.unreadCounts,
       );
 
   Map<String, dynamic> toMap() => {
@@ -51,6 +56,7 @@ class ChatConversation {
         'updatedAt': Timestamp.fromDate(lastAt),
         'productName': productName,
         'productImageUrl': productImageUrl,
+        if (unreadCounts.isNotEmpty) 'unreadCounts': unreadCounts,
       };
 
   static ChatConversation fromMap(Map<String, dynamic> map) {
@@ -60,6 +66,16 @@ class ChatConversation {
         : (ts is String ? DateTime.tryParse(ts) : null) ?? DateTime.now();
     final partsRaw = (map['members'] ?? map['participants']) as List?;
     final parts = partsRaw?.whereType<String>().toList() ?? const <String>[];
+    // Parse unreadCounts map
+    final unreadRaw = map['unreadCounts'];
+    final unreadCounts = <String, int>{};
+    if (unreadRaw is Map) {
+      unreadRaw.forEach((k, v) {
+        if (k is String && v is int) {
+          unreadCounts[k] = v;
+        }
+      });
+    }
     return ChatConversation(
       id: (map['id'] ?? '') as String,
       productId: (map['productId'] ?? '') as String,
@@ -70,6 +86,10 @@ class ChatConversation {
       lastAt: lastAt,
       productName: (map['productName'] ?? '') as String,
       productImageUrl: (map['productImageUrl'] ?? '') as String,
+      unreadCounts: unreadCounts,
     );
   }
+
+  /// Get unread count for a specific user
+  int getUnreadFor(String userId) => unreadCounts[userId] ?? 0;
 }

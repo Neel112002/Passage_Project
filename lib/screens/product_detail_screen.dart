@@ -12,6 +12,8 @@ import 'package:passage/utils/url_fixes.dart';
 import 'package:passage/screens/chat_thread_screen.dart';
 import 'package:passage/services/firestore_chats_service.dart';
 import 'package:passage/widgets/cart_icon_button.dart';
+import 'package:passage/services/firestore_user_profile_service.dart';
+import 'package:passage/models/user_profile.dart';
 
 class ProductDetailData {
   final String id;
@@ -79,11 +81,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   double _newRating = 0;
   final TextEditingController _commentController = TextEditingController();
 
+  // Seller profile state
+  UserProfile? _sellerProfile;
+  bool _loadingSellerProfile = true;
+
   @override
   void initState() {
     super.initState();
     _galleryController = PageController();
     _loadReviews();
+    _loadSellerProfile();
   }
 
   @override
@@ -104,6 +111,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
       _avgRating = avg;
       _loadingReviews = false;
     });
+  }
+
+  Future<void> _loadSellerProfile() async {
+    if (widget.product.sellerId.isEmpty) {
+      setState(() => _loadingSellerProfile = false);
+      return;
+    }
+    try {
+      final profile = await FirestoreUserProfileService.getById(widget.product.sellerId);
+      setState(() {
+        _sellerProfile = profile;
+        _loadingSellerProfile = false;
+      });
+    } catch (e) {
+      setState(() => _loadingSellerProfile = false);
+    }
   }
 
   Future<void> _submitReview() async {
@@ -169,6 +192,99 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
+    );
+  }
+
+  Widget _buildSellerInfo(ThemeData theme) {
+    if (widget.product.sellerId.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    if (_loadingSellerProfile) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            const CircleAvatar(
+              radius: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Loading seller info...',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final sellerName = _sellerProfile?.fullName.trim().isNotEmpty ?? false
+        ? _sellerProfile!.fullName
+        : _sellerProfile?.username ?? 'Seller';
+    
+    final avatarUrl = _sellerProfile?.avatarUrl ?? '';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Profile photo
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: Colors.indigo.withValues(alpha: 0.15),
+            backgroundImage: avatarUrl.isNotEmpty && avatarUrl.startsWith('http')
+                ? NetworkImage(avatarUrl)
+                : null,
+            child: avatarUrl.isEmpty || !avatarUrl.startsWith('http')
+                ? Icon(
+                    Icons.person,
+                    size: 24,
+                    color: Colors.indigo,
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sold by',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  sellerName,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -364,6 +480,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
         ),
+        const SizedBox(height: 12),
+        // Seller info section
+        _buildSellerInfo(theme),
         const SizedBox(height: 12),
         // Campus / pickup info
         Row(

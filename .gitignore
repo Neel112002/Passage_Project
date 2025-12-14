@@ -1,0 +1,92 @@
+# ==============================
+# Flutter / Dart
+# ==============================
+.dart_tool/
+.packages
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub/
+
+build/
+flutter_*.png
+
+# ==============================
+# IDE / Editor
+# ==============================
+.idea/
+.vscode/
+*.iml
+
+# ==============================
+# Android
+# ==============================
+android/.gradle/
+android/local.properties
+android/captures/
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/app/build/
+
+# Firebase (Android)
+android/app/google-services.json
+
+# ==============================
+# iOS / macOS
+# ==============================
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/.last_build_id
+ios/Runner.xcworkspace/
+ios/DerivedData/
+
+# Firebase (iOS)
+ios/Runner/GoogleService-Info.plist
+
+# macOS
+macos/Flutter/ephemeral/
+macos/Pods/
+
+# ==============================
+# Web
+# ==============================
+web/.dart_tool/
+web/build/
+
+# ==============================
+# Logs & Temp
+# ==============================
+*.log
+*.tmp
+*.swp
+
+# ==============================
+# OS Files
+# ==============================
+.DS_Store
+Thumbs.db
+
+# ==============================
+# Environment / Secrets
+# ==============================
+.env
+.env.*
+firebase.json
+.firebaserc
+
+# ==============================
+# Coverage / Tests
+# ==============================
+coverage/
+
+# ==============================
+# Generated files
+# ==============================
+*.g.dart
+*.freezed.dart

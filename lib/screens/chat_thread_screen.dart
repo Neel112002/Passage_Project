@@ -7,6 +7,8 @@ import 'package:passage/services/firestore_chats_service.dart';
 import 'package:passage/services/firebase_auth_service.dart';
 import 'package:passage/models/chat_message.dart';
 import 'package:passage/services/local_hidden_messages_store.dart';
+import 'package:passage/models/user_profile.dart';
+import 'package:passage/services/firestore_user_profile_service.dart';
 
 class ChatThreadScreen extends StatefulWidget {
   // When opening from a list, we already have chatId.
@@ -49,6 +51,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   bool _initialMessageSent = false;
   Set<String> _hiddenForMe = <String>{};
   String? _headerProductName;
+  UserProfile? _otherUserProfile;
+  bool _loadingProfile = false;
 
   String _statusLabel(String raw) {
     switch (raw) {
@@ -107,6 +111,12 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               _headerProductName = pn;
             });
           }
+          // Fetch the other user's profile
+          final members = (data['members'] as List?)?.whereType<String>().toList() ?? const <String>[];
+          if (members.length == 2) {
+            final otherUserId = members.first == uid ? members.last : members.first;
+            _fetchOtherUserProfile(otherUserId);
+          }
         }
       } catch (_) {
         // Non-fatal if chat doc cannot be read
@@ -152,6 +162,29 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     }
   }
 
+  Future<void> _fetchOtherUserProfile(String userId) async {
+    if (!mounted) return;
+    setState(() {
+      _loadingProfile = true;
+    });
+    try {
+      final profile = await FirestoreUserProfileService.getById(userId);
+      if (mounted) {
+        setState(() {
+          _otherUserProfile = profile;
+          _loadingProfile = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch other user profile: $e');
+      if (mounted) {
+        setState(() {
+          _loadingProfile = false;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     _textCtrl.dispose();
@@ -180,22 +213,51 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.shopping_bag_outlined, color: Colors.indigo, size: 20),
-            ),
+            // Profile photo
+            _loadingProfile
+                ? CircleAvatar(
+                    radius: 18,
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    child: const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : CircleAvatar(
+                    radius: 18,
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    backgroundImage: _otherUserProfile?.avatarUrl.isNotEmpty == true
+                        ? NetworkImage(_otherUserProfile!.avatarUrl)
+                        : null,
+                    child: _otherUserProfile?.avatarUrl.isEmpty != false
+                        ? Icon(Icons.person, color: theme.colorScheme.primary, size: 20)
+                        : null,
+                  ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Chat about', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.7))),
-                  Text(_headerProductName ?? widget.productName ?? 'Conversation', maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  Text(
+                    _otherUserProfile?.fullName.isNotEmpty == true
+                        ? _otherUserProfile!.fullName
+                        : (_otherUserProfile?.username.isNotEmpty == true
+                            ? _otherUserProfile!.username
+                            : 'User'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  if (_headerProductName?.isNotEmpty == true || widget.productName?.isNotEmpty == true)
+                    Text(
+                      'Chat about ${_headerProductName ?? widget.productName}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
                 ],
               ),
             ),

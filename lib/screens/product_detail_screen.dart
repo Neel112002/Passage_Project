@@ -223,10 +223,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             const SizedBox(width: 12),
-            Text(
-              'Loading seller info...',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            Expanded(
+              child: Text(
+                'Loading seller info...',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -259,7 +262,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                 ? NetworkImage(avatarUrl)
                 : null,
             child: avatarUrl.isEmpty || !avatarUrl.startsWith('http')
-                ? Icon(
+                ? const Icon(
                     Icons.person,
                     size: 24,
                     color: Colors.indigo,
@@ -270,12 +273,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   'Sold by',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(

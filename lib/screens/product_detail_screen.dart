@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:passage/models/cart_item.dart';
 import 'package:passage/models/review.dart';
@@ -115,16 +116,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
 
   Future<void> _loadSellerProfile() async {
     if (widget.product.sellerId.isEmpty) {
+      debugPrint('SELLER_PROFILE: sellerId is empty');
       setState(() => _loadingSellerProfile = false);
       return;
     }
+    debugPrint('SELLER_PROFILE: Loading profile for sellerId=${widget.product.sellerId}');
     try {
       final profile = await FirestoreUserProfileService.getById(widget.product.sellerId);
+      debugPrint('SELLER_PROFILE: Profile fetched: ${profile?.toString() ?? "null"}');
       setState(() {
         _sellerProfile = profile;
         _loadingSellerProfile = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('SELLER_PROFILE: Error loading profile: $e');
+      debugPrint('SELLER_PROFILE: Stack trace: $stackTrace');
       setState(() => _loadingSellerProfile = false);
     }
   }

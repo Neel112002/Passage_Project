@@ -9,6 +9,7 @@ import 'package:passage/screens/home_screen.dart';
 
 import 'package:passage/services/local_cart_store.dart';
 import 'package:passage/services/local_points_store.dart';
+import 'package:passage/services/local_saved_reels_service.dart';
 import 'package:passage/services/navigation_service.dart';
 import 'package:passage/admin/admin_app.dart';
 import 'package:passage/services/local_auth_store.dart';
@@ -46,6 +47,7 @@ void main() async {
 
   await LocalCartStore.bootstrap();
   await LocalPointsStore.bootstrap();
+  await LocalSavedReelsStore.bootstrap();
   // Initialize global auth store and subscribe to auth state (web: LOCAL persistence)
   await AuthStore.instance.init();
   await _seedDemoAccountsIfEmpty();

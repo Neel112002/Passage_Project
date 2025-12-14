@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 // import 'dart:math' as math; // no longer used
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
+import 'package:path_provider/path_provider.dart' if (dart.library.html) 'package:path_provider/path_provider.dart';
 import 'product_detail_screen.dart';
 import 'notifications_screen.dart';
 import 'edit_profile_screen.dart';
@@ -24,6 +26,9 @@ import 'package:passage/services/local_cart_store.dart';
 import 'package:passage/widgets/cart_icon_button.dart';
 import 'package:passage/widgets/points_icon_button.dart';
 import 'package:passage/services/firebase_auth_service.dart';
+import 'package:passage/services/local_saved_reels_service.dart';
+import 'package:passage/services/firestore_reels_service.dart';
+import 'package:passage/models/reel.dart';
 import 'conversations_list_screen.dart';
 import 'package:passage/utils/url_fixes.dart';
 import 'seller_dashboard_screen.dart';
@@ -1395,28 +1400,81 @@ class _HomeScreenState extends State<HomeScreen> {
     return [
       SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.bookmark_border,
-                  size: 72, color: Colors.deepOrange),
-              const SizedBox(height: 16),
-              Text(
-                'Saved Items',
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Save products and content you want to come back to.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                    color:
-                        theme.colorScheme.onSurface.withValues(alpha: 0.7)),
-                textAlign: TextAlign.center,
-              ),
-            ],
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Text(
+            'Saved Reels',
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
+        ),
+      ),
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: ValueListenableBuilder<Set<String>>(
+          valueListenable: LocalSavedReelsStore.savedReelsNotifier,
+          builder: (context, savedReelIds, _) {
+            if (savedReelIds.isEmpty) {
+              return SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.bookmark_border,
+                          size: 72, color: Colors.amber),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No saved reels yet',
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Save reels to watch later and they\'ll appear here.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return SliverLayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.crossAxisExtent;
+                int columns;
+                if (width >= 900) {
+                  columns = 4;
+                } else if (width >= 600) {
+                  columns = 3;
+                } else {
+                  columns = 2;
+                }
+
+                return SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 0.65,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final reelId = savedReelIds.elementAt(index);
+                      return _SavedReelCard(
+                        reelId: reelId,
+                        onUnsave: () async {
+                          await LocalSavedReelsStore.remove(reelId);
+                        },
+                      );
+                    },
+                    childCount: savedReelIds.length,
+                  ),
+                );
+              },
+            );
+          },
         ),
       ),
     ];
@@ -2753,6 +2811,222 @@ class _CategoryItem {
 }
 
 enum _ProfileSection { settings, saved, liked }
+
+// Saved Reel Card widget
+class _SavedReelCard extends StatefulWidget {
+  final String reelId;
+  final VoidCallback onUnsave;
+
+  const _SavedReelCard({
+    required this.reelId,
+    required this.onUnsave,
+  });
+
+  @override
+  State<_SavedReelCard> createState() => _SavedReelCardState();
+}
+
+class _SavedReelCardState extends State<_SavedReelCard> {
+  ReelModel? _reel;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReel();
+  }
+
+  Future<void> _loadReel() async {
+    try {
+      final reels = await FirestoreReelsService.loadAll();
+      final reel = reels.firstWhere(
+        (r) => r.id == widget.reelId,
+        orElse: () => ReelModel(
+          id: widget.reelId,
+          productId: '',
+          sellerId: '',
+          videoUrl: '',
+          caption: 'Reel not found',
+          category: '',
+          isActive: false,
+          createdAt: DateTime.now(),
+        ),
+      );
+      if (mounted) {
+        setState(() {
+          _reel = reel;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading saved reel $widget.reelId: $e');
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.toString().contains('failed-precondition')
+              ? 'Index pending'
+              : 'Load failed';
+        });
+      }
+    }
+  }
+
+  Future<void> _openReel() async {
+    if (_reel == null || _reel!.videoUrl.isEmpty) return;
+
+    // Navigate to reels screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ReelsScreen()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (_loading) {
+      return Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null || _reel == null || !_reel!.isActive) {
+      return Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _error != null ? Icons.cloud_off : Icons.error_outline,
+                    size: 32,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _error ?? 'Reel unavailable',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            // Unsave button even if error
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                onPressed: widget.onUnsave,
+                icon: const Icon(Icons.bookmark, color: Colors.amber),
+                tooltip: 'Remove from saved',
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withValues(alpha: 0.3),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return InkWell(
+      onTap: _openReel,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Placeholder or thumbnail
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                color: Colors.black,
+                child: const Center(
+                  child: Icon(Icons.play_circle_filled,
+                      size: 64, color: Colors.white70),
+                ),
+              ),
+            ),
+            // Gradient overlay
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.7)
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+            ),
+            // Caption
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _reel!.caption,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _reel!.category,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Unsave button
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                onPressed: widget.onUnsave,
+                icon: const Icon(Icons.bookmark, color: Colors.amber),
+                tooltip: 'Remove from saved',
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 enum _SortOption { recommended, priceLowHigh, priceHighLow, ratingHighLow }
 

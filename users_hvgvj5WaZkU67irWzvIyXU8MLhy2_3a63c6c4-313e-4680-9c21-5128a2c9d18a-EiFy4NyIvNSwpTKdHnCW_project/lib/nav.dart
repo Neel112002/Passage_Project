@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+// import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:passage/screens/home_screen.dart';
 import 'package:passage/screens/splash_screen.dart';
@@ -47,7 +47,7 @@ class AppRouter {
         path: AppRoutes.home,
         name: 'home',
         pageBuilder: (context, state) => const NoTransitionPage(
-          child: HomeScreen(title: 'Passage'),
+          child: HomeScreen(),
         ),
       ),
     ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:passage/screens/home_screen.dart';
+import 'package:passage/screens/splash_screen.dart';
 
 /// GoRouter configuration for app navigation
 ///
@@ -17,8 +18,15 @@ import 'package:passage/screens/home_screen.dart';
 /// 4. Use context.pop() to go back.
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: AppRoutes.home,
+    initialLocation: AppRoutes.splash,
     routes: [
+      GoRoute(
+        path: AppRoutes.splash,
+        name: 'splash',
+        pageBuilder: (context, state) => const NoTransitionPage(
+          child: SplashScreen(),
+        ),
+      ),
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
@@ -33,5 +41,6 @@ class AppRouter {
 /// Route path constants
 /// Use these instead of hard-coding route strings
 class AppRoutes {
-  static const String home = '/';
+  static const String splash = '/';
+  static const String home = '/home';
 }

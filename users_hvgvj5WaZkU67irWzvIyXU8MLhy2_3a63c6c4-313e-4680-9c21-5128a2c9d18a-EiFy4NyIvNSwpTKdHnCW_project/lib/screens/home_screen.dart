@@ -16,6 +16,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppBarTheme.of(context).backgroundColor,
@@ -28,12 +30,12 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.vpn_key, size: 64, color: Theme.of(context).colorScheme.primary),
+              Icon(Icons.storefront, size: 64, color: colors.primary),
               const SizedBox(height: AppSpacing.lg),
               Text('Welcome to Passage', style: context.textStyles.headlineSmall?.bold),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'A modern Flutter starter, production-ready for Android and iOS.',
+                'Buy & Sell Within Your Campus — coming soon.',
                 style: context.textStyles.bodyMedium,
                 textAlign: TextAlign.center,
                 softWrap: true,
@@ -44,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
                   child: Row(
                     children: [
-                      const Icon(Icons.touch_app, color: Colors.blue),
+                      Icon(Icons.touch_app, color: colors.secondary),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Text('You have tapped the button this many times:', style: context.textStyles.bodyMedium),
@@ -61,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
         tooltip: 'Increment',
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add),
       ),
     );
   }

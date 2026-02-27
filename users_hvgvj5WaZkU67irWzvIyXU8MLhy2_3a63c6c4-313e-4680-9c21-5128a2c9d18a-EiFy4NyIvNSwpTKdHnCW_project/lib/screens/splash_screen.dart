@@ -30,10 +30,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller.forward();
 
-    // Navigate to home after a short delay
-    Future.delayed(const Duration(milliseconds: 1100), () {
+    // Navigate to main app after a short delay
+    Future.delayed(const Duration(milliseconds: 2000), () {
       if (!mounted) return;
-      context.go(AppRoutes.onboarding);
+      context.go(AppRoutes.app);
     });
   }
 

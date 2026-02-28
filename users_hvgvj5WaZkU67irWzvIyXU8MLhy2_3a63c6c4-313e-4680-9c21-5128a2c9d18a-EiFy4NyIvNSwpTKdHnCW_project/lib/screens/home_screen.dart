@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:passage/models/item_model.dart';
+import 'package:passage/services/item_service.dart';
 import 'package:passage/theme.dart';
 import 'package:passage/widgets/item_card.dart';
 
@@ -15,11 +16,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _scrollController = ScrollController();
-  final List<ItemModel> _allItems = [];
   final List<ItemModel> _visibleItems = [];
   bool _isLoadingMore = false;
   bool _isRefreshing = false;
   ItemCategory? _selectedCategory; // null means all
+  final ItemService _service = ItemService.instance;
 
   static const _categories = [
     ItemCategory.textbooks,
@@ -35,37 +36,33 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _initData();
     _scrollController.addListener(_onScroll);
+    _service.addListener(_onServiceChanged);
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _service.removeListener(_onServiceChanged);
     super.dispose();
   }
 
   Future<void> _initData() async {
-    final initial = ItemModel.generateSamples(startIndex: 0, count: 12);
-    _allItems
-      ..clear()
-      ..addAll(initial);
+    // Seeded by ItemService; just reflect into visible list
     _applyFilter();
     setState(() {});
   }
 
   void _applyFilter() {
+    final source = _service.items;
     _visibleItems
       ..clear()
-      ..addAll(_selectedCategory == null ? _allItems : _allItems.where((e) => e.category == _selectedCategory));
+      ..addAll(_selectedCategory == null ? source : source.where((e) => e.category == _selectedCategory));
   }
 
   Future<void> _onRefresh() async {
     if (_isRefreshing) return;
     setState(() => _isRefreshing = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    final refreshed = ItemModel.generateSamples(startIndex: 0, count: 14);
-    _allItems
-      ..clear()
-      ..addAll(refreshed);
+    await _service.refresh();
     _applyFilter();
     if (mounted) setState(() => _isRefreshing = false);
   }
@@ -81,10 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadMore() async {
     if (_isLoadingMore) return;
     setState(() => _isLoadingMore = true);
-    await Future.delayed(const Duration(milliseconds: 1200));
-    final start = _allItems.length;
-    final more = ItemModel.generateSamples(startIndex: start, count: 10);
-    _allItems.addAll(more);
+    final more = await _service.loadMore(count: 10);
     final currentCategory = _selectedCategory;
     if (currentCategory == null) {
       _visibleItems.addAll(more);
@@ -95,15 +89,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _toggleBookmark(ItemModel item) {
-    final idx = _allItems.indexWhere((e) => e.id == item.id);
-    if (idx != -1) {
-      _allItems[idx] = _allItems[idx].copyWith(isBookmarked: !_allItems[idx].isBookmarked);
-    }
-    final vidx = _visibleItems.indexWhere((e) => e.id == item.id);
-    if (vidx != -1) {
-      _visibleItems[vidx] = _visibleItems[vidx].copyWith(isBookmarked: !_visibleItems[vidx].isBookmarked);
-    }
-    setState(() {});
+    _service.toggleBookmark(item.id);
+  }
+
+  void _onServiceChanged() {
+    // Underlying list changed (e.g., new post or bookmark); reapply filter
+    _applyFilter();
+    if (mounted) setState(() {});
   }
 
   String _categoryLabel(ItemCategory c) => switch (c) {

@@ -3,7 +3,7 @@ import 'package:passage/screens/home_screen.dart';
 import 'package:passage/screens/messages_screen.dart';
 import 'package:passage/screens/profile_screen.dart';
 import 'package:passage/screens/sell_screen.dart';
-import 'package:passage/theme.dart';
+// import 'package:passage/theme.dart';
 
 /// MainApp is the tab scaffold shown after splash
 /// Uses IndexedStack to preserve each tab's state
@@ -16,13 +16,7 @@ class MainApp extends StatefulWidget {
 
 class _MainAppState extends State<MainApp> {
   int _currentIndex = 0;
-
-  late final List<Widget> _pages = const [
-    HomeScreen(),
-    SellScreen(),
-    MessagesScreen(),
-    ProfileScreen(),
-  ];
+  late final List<Widget> _pages;
 
   @override
   Widget build(BuildContext context) {
@@ -46,5 +40,16 @@ class _MainAppState extends State<MainApp> {
         ],
       ),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      const HomeScreen(),
+      SellScreen(onPosted: () => setState(() => _currentIndex = 0)),
+      const MessagesScreen(),
+      const ProfileScreen(),
+    ];
   }
 }

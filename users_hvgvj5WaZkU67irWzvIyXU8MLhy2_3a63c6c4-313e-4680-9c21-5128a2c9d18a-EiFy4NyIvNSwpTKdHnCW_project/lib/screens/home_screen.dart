@@ -6,6 +6,7 @@ import 'package:passage/models/item_model.dart';
 import 'package:passage/services/item_service.dart';
 import 'package:passage/theme.dart';
 import 'package:passage/widgets/item_card.dart';
+import 'package:passage/nav.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -150,6 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   item: item,
                   onBookmarkToggle: () => _toggleBookmark(item),
                   onChatTap: () => context.push('/login'),
+                  onTap: () => context.push(AppRoutes.product, extra: item),
                 );
               },
             ),

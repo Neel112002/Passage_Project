@@ -5,6 +5,8 @@ import 'package:passage/screens/splash_screen.dart';
 import 'package:passage/screens/onboarding_screen.dart';
 import 'package:passage/screens/login_screen.dart';
 import 'package:passage/screens/main_app.dart';
+import 'package:passage/screens/product_detail_screen.dart';
+import 'package:passage/models/item_model.dart';
 
 /// GoRouter configuration for app navigation
 ///
@@ -58,6 +60,17 @@ class AppRouter {
           child: HomeScreen(),
         ),
       ),
+      GoRoute(
+        path: AppRoutes.product,
+        name: 'product',
+        pageBuilder: (context, state) {
+          final extra = state.extra;
+          if (extra is! ItemModel) {
+            return const NoTransitionPage(child: Scaffold(body: Center(child: Text('Invalid product data'))));
+          }
+          return NoTransitionPage(child: ProductDetailScreen(item: extra));
+        },
+      ),
     ],
   );
 }
@@ -70,4 +83,5 @@ class AppRoutes {
   static const String onboarding = '/onboarding';
   static const String login = '/login';
   static const String home = '/home';
+  static const String product = '/product';
 }

@@ -8,6 +8,7 @@ import 'package:passage/screens/main_app.dart';
 import 'package:passage/screens/product_detail_screen.dart';
 import 'package:passage/models/item_model.dart';
 import 'package:passage/screens/chat_screen.dart';
+import 'package:passage/models/conversation_model.dart';
 
 /// GoRouter configuration for app navigation
 ///
@@ -72,15 +73,18 @@ class AppRouter {
           return NoTransitionPage(child: ProductDetailScreen(item: extra));
         },
       ),
-            GoRoute(
+      GoRoute(
         path: AppRoutes.chat,
         name: 'chat',
         pageBuilder: (context, state) {
           final extra = state.extra;
-          if (extra is! ItemModel) {
+          if (extra is ItemModel) {
+            return NoTransitionPage(child: ChatScreen(item: extra));
+          } else if (extra is ConversationModel) {
+            return NoTransitionPage(child: ChatScreen(conversation: extra));
+          } else {
             return const NoTransitionPage(child: Scaffold(body: Center(child: Text('Invalid chat data'))));
           }
-          return NoTransitionPage(child: ChatScreen(item: extra));
         },
       ),
     ],

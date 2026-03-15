@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:passage/models/item_model.dart';
+import 'package:passage/models/conversation_model.dart';
 import 'package:passage/theme.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key, required this.item});
-  final ItemModel item;
+  const ChatScreen({super.key, this.item, this.conversation}) : assert(item != null || conversation != null, 'Either item or conversation must be provided');
+  final ItemModel? item;
+  final ConversationModel? conversation;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -16,10 +18,12 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocus = FocusNode();
+  late final ItemModel _item; // Resolved item from either direct prop or conversation
 
   @override
   void initState() {
     super.initState();
+    _item = widget.item ?? widget.conversation!.item;
     _seedMockConversation();
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(jump: true));
   }
@@ -34,15 +38,15 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _seedMockConversation() {
     final me = 'You';
-    final seller = widget.item.sellerName;
-    final title = widget.item.title;
-    final price = widget.item.displayPrice;
+    final seller = _item.sellerName;
+    final title = _item.title;
+    final price = _item.displayPrice;
 
     _messages.addAll([
       _ChatMessage(sender: seller, text: 'Hi! The $title is available.', isMe: false, timestamp: DateTime.now().subtract(const Duration(minutes: 12))),
       _ChatMessage(sender: me, text: 'Awesome! Is the price negotiable?', isMe: true, timestamp: DateTime.now().subtract(const Duration(minutes: 10))),
-      _ChatMessage(sender: seller, text: 'I can do $price, it\'s in ${widget.item.conditionLabel} condition.', isMe: false, timestamp: DateTime.now().subtract(const Duration(minutes: 8))),
-      _ChatMessage(sender: me, text: 'Sounds good. Could we meet near ${widget.item.university}?', isMe: true, timestamp: DateTime.now().subtract(const Duration(minutes: 6))),
+      _ChatMessage(sender: seller, text: 'I can do $price, it\'s in ${_item.conditionLabel} condition.', isMe: false, timestamp: DateTime.now().subtract(const Duration(minutes: 8))),
+      _ChatMessage(sender: me, text: 'Sounds good. Could we meet near ${_item.university}?', isMe: true, timestamp: DateTime.now().subtract(const Duration(minutes: 6))),
       _ChatMessage(sender: seller, text: 'Yes, that works for me this afternoon.', isMe: false, timestamp: DateTime.now().subtract(const Duration(minutes: 4))),
     ]);
   }
@@ -81,16 +85,16 @@ class _ChatScreenState extends State<ChatScreen> {
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.pop()),
         titleSpacing: 0,
         title: Row(children: [
-          CircleAvatar(backgroundColor: widget.item.avatarColor, child: Text(widget.item.initials, style: text.labelLarge?.copyWith(color: Colors.white))),
+          CircleAvatar(backgroundColor: _item.avatarColor, child: Text(_item.initials, style: text.labelLarge?.copyWith(color: Colors.white))),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text(widget.item.sellerName, style: text.titleMedium?.semiBold, overflow: TextOverflow.ellipsis),
+              Text(_item.sellerName, style: text.titleMedium?.semiBold, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 2),
               Row(children: [
                 Icon(Icons.school, size: 14, color: colors.tertiary),
                 const SizedBox(width: 4),
-                Flexible(child: Text(widget.item.university, style: text.labelSmall?.withColor(colors.onSurfaceVariant), overflow: TextOverflow.ellipsis)),
+                Flexible(child: Text(_item.university, style: text.labelSmall?.withColor(colors.onSurfaceVariant), overflow: TextOverflow.ellipsis)),
               ]),
             ]),
           ),

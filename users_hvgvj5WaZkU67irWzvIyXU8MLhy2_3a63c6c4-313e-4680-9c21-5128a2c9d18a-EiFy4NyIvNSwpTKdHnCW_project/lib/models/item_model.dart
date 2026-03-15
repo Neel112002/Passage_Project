@@ -20,8 +20,10 @@ class ItemModel {
   final String? imageUrl; // Optional; we use a placeholder in UI
   final Color avatarColor; // Deterministic color based on seller
   final bool isBookmarked;
+  final String description; // NEW: detailed description
+  final DateTime createdAt; // NEW: creation timestamp
 
-  const ItemModel({
+  ItemModel({
     required this.id,
     required this.title,
     required this.sellerName,
@@ -32,7 +34,9 @@ class ItemModel {
     this.imageUrl,
     this.avatarColor = const Color(0xFF5C6B7A),
     this.isBookmarked = false,
-  });
+    this.description = '',
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
 
   ItemModel copyWith({
     String? id,
@@ -45,6 +49,8 @@ class ItemModel {
     String? imageUrl,
     Color? avatarColor,
     bool? isBookmarked,
+    String? description,
+    DateTime? createdAt,
   }) => ItemModel(
         id: id ?? this.id,
         title: title ?? this.title,
@@ -56,6 +62,8 @@ class ItemModel {
         imageUrl: imageUrl ?? this.imageUrl,
         avatarColor: avatarColor ?? this.avatarColor,
         isBookmarked: isBookmarked ?? this.isBookmarked,
+        description: description ?? this.description,
+        createdAt: createdAt ?? this.createdAt,
       );
 
   String get displayPrice => '\$${price.toStringAsFixed(price.truncateToDouble() == price ? 0 : 2)}';
@@ -136,6 +144,8 @@ class ItemModel {
       };
       final cond = rand.nextBool() ? ItemCondition.brandNew : ItemCondition.used;
       final seedColor = _colorFromSeed(seller);
+      final created = DateTime.now().subtract(Duration(minutes: (count - i) * 7 + rand.nextInt(30)));
+      final desc = 'Great ${cond == ItemCondition.brandNew ? 'new' : 'used'} ${_categoryWord(cat)}. Pickup near $university.';
 
       return ItemModel(
         id: 'item_$idx',
@@ -148,7 +158,18 @@ class ItemModel {
         imageUrl: null,
         avatarColor: seedColor,
         isBookmarked: false,
+        description: desc,
+        createdAt: created,
       );
     });
   }
 }
+
+String _categoryWord(ItemCategory c) => switch (c) {
+      ItemCategory.textbooks => 'textbook',
+      ItemCategory.furniture => 'furniture',
+      ItemCategory.electronics => 'electronics item',
+      ItemCategory.bikes => 'bike',
+      ItemCategory.clothing => 'clothing',
+      ItemCategory.sublets => 'sublet',
+    };

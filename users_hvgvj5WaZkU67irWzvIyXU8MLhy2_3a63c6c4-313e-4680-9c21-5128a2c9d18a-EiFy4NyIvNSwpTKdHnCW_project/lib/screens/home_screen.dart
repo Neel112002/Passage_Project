@@ -1,12 +1,11 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:passage/models/item_model.dart';
-import 'package:passage/services/item_service.dart';
 import 'package:passage/theme.dart';
 import 'package:passage/widgets/item_card.dart';
 import 'package:passage/nav.dart';
+import 'package:provider/provider.dart';
+import 'package:passage/services/item_store.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,11 +16,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _scrollController = ScrollController();
-  final List<ItemModel> _visibleItems = [];
-  bool _isLoadingMore = false;
   bool _isRefreshing = false;
   ItemCategory? _selectedCategory; // null means all
-  final ItemService _service = ItemService.instance;
 
   static const _categories = [
     ItemCategory.textbooks,
@@ -33,71 +29,22 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _initData();
-    _scrollController.addListener(_onScroll);
-    _service.addListener(_onServiceChanged);
-  }
-
-  @override
   void dispose() {
     _scrollController.dispose();
-    _service.removeListener(_onServiceChanged);
     super.dispose();
   }
 
-  Future<void> _initData() async {
-    // Seeded by ItemService; just reflect into visible list
-    _applyFilter();
-    setState(() {});
-  }
-
-  void _applyFilter() {
-    final source = _service.items;
-    _visibleItems
-      ..clear()
-      ..addAll(_selectedCategory == null ? source : source.where((e) => e.category == _selectedCategory));
-  }
+  List<ItemModel> _filtered(List<ItemModel> source) =>
+      _selectedCategory == null ? source : source.where((e) => e.category == _selectedCategory).toList();
 
   Future<void> _onRefresh() async {
     if (_isRefreshing) return;
     setState(() => _isRefreshing = true);
-    await _service.refresh();
-    _applyFilter();
+    await Future.delayed(const Duration(milliseconds: 500));
     if (mounted) setState(() => _isRefreshing = false);
   }
 
-  void _onScroll() {
-    if (_isLoadingMore) return;
-    final pos = _scrollController.position;
-    if (pos.pixels >= pos.maxScrollExtent - 300) {
-      _loadMore();
-    }
-  }
-
-  Future<void> _loadMore() async {
-    if (_isLoadingMore) return;
-    setState(() => _isLoadingMore = true);
-    final more = await _service.loadMore(count: 10);
-    final currentCategory = _selectedCategory;
-    if (currentCategory == null) {
-      _visibleItems.addAll(more);
-    } else {
-      _visibleItems.addAll(more.where((e) => e.category == currentCategory));
-    }
-    if (mounted) setState(() => _isLoadingMore = false);
-  }
-
-  void _toggleBookmark(ItemModel item) {
-    _service.toggleBookmark(item.id);
-  }
-
-  void _onServiceChanged() {
-    // Underlying list changed (e.g., new post or bookmark); reapply filter
-    _applyFilter();
-    if (mounted) setState(() {});
-  }
+  void _toggleBookmark(BuildContext context, ItemModel item) => context.read<ItemStore>().toggleBookmark(item.id);
 
   String _categoryLabel(ItemCategory c) => switch (c) {
         ItemCategory.textbooks => 'Textbooks',
@@ -111,6 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final store = context.watch<ItemStore>();
+    final visibleItems = _filtered(store.items);
 
     return Scaffold(
       appBar: AppBar(
@@ -125,11 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
           categories: _categories,
           selected: _selectedCategory,
           labelBuilder: _categoryLabel,
-          onSelected: (c) {
-            setState(() => _selectedCategory = c == _selectedCategory ? null : c);
-            _applyFilter();
-            setState(() {});
-          },
+          onSelected: (c) => setState(() => _selectedCategory = c == _selectedCategory ? null : c),
         ),
         Expanded(
           child: RefreshIndicator(
@@ -138,18 +83,12 @@ class _HomeScreenState extends State<HomeScreen> {
             child: ListView.builder(
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: _visibleItems.length + (_isLoadingMore ? 1 : 0),
+              itemCount: visibleItems.length,
               itemBuilder: (context, index) {
-                if (index >= _visibleItems.length) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                    child: Center(child: SizedBox(height: 28, width: 28, child: CircularProgressIndicator(strokeWidth: 2.6))),
-                  );
-                }
-                final item = _visibleItems[index];
+                final item = visibleItems[index];
                 return ItemCard(
                   item: item,
-                  onBookmarkToggle: () => _toggleBookmark(item),
+                  onBookmarkToggle: () => _toggleBookmark(context, item),
                   onChatTap: () => context.push('/login'),
                   onTap: () => context.push(AppRoutes.product, extra: item),
                 );

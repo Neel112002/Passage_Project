@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:passage/models/item_model.dart';
 import 'package:passage/nav.dart';
-import 'package:passage/services/item_service.dart';
 import 'package:passage/theme.dart';
 import 'package:passage/widgets/profile_header.dart';
 import 'package:passage/widgets/profile_listing_card.dart';
+import 'package:provider/provider.dart';
+import 'package:passage/services/item_store.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -15,15 +16,6 @@ class ProfileScreen extends StatelessWidget {
   static const String _university = 'Your Campus';
   static const String _joined = 'Joined Sep 2024';
 
-  List<ItemModel> _myListings(List<ItemModel> all) {
-    final mine = all.where((e) => e.sellerName == _userName).toList();
-    if (mine.isNotEmpty) return mine;
-    final mock = ItemModel.generateSamples(startIndex: 900, count: 4);
-    return mock
-        .map((e) => e.copyWith(sellerName: _userName, university: _university, id: 'my_${e.id}'))
-        .toList(growable: false);
-  }
-
   int _savedCount(List<ItemModel> all) => all.where((e) => e.isBookmarked).length;
 
   @override
@@ -32,89 +24,86 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text('Profile', style: text.titleLarge?.semiBold)),
-      body: AnimatedBuilder(
-        animation: ItemService.instance,
-        builder: (context, _) {
-          final items = ItemService.instance.items;
-          final myListings = _myListings(items);
-          final saved = _savedCount(items);
+      body: Consumer<ItemStore>(builder: (context, store, _) {
+        final items = store.items;
+        final myListings = store.getUserItems();
+        final saved = _savedCount(items);
 
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                ProfileHeader(
-                  name: _userName,
-                  university: _university,
-                  joinedText: _joined,
-                  listingsCount: myListings.length,
-                  soldCount: (myListings.length / 3).floor(),
-                  savedCount: saved,
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              ProfileHeader(
+                name: _userName,
+                university: _university,
+                joinedText: _joined,
+                listingsCount: myListings.length,
+                soldCount: (myListings.length / 3).floor(),
+                savedCount: saved,
+              ),
+
+              // Section title
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('My Listings', style: text.titleLarge?.semiBold),
+                    TextButton.icon(
+                      onPressed: () {},
+                      icon: const Icon(Icons.grid_view_rounded, size: 18),
+                      label: const Text('View All'),
+                    )
+                  ],
                 ),
+              ),
 
-                // Section title
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('My Listings', style: text.titleLarge?.semiBold),
-                      TextButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.grid_view_rounded, size: 18),
-                        label: const Text('View All'),
-                      )
-                    ],
+              // Listings grid
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: GridView.builder(
+                  itemCount: myListings.length,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.72,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
                   ),
+                  itemBuilder: (context, index) {
+                    final item = myListings[index];
+                    return ProfileListingCard(
+                      item: item,
+                      onTap: () => context.push(AppRoutes.product, extra: item),
+                    );
+                  },
                 ),
+              ),
 
-                // Listings grid
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: GridView.builder(
-                    itemCount: myListings.length,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.72,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                    ),
-                    itemBuilder: (context, index) {
-                      final item = myListings[index];
-                      return ProfileListingCard(
-                        item: item,
-                        onTap: () => context.push(AppRoutes.product, extra: item),
-                      );
-                    },
-                  ),
-                ),
+              // Menu title
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, AppSpacing.sm),
+                child: Text('Menu', style: text.titleLarge?.semiBold),
+              ),
 
-                // Menu title
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, AppSpacing.sm),
-                  child: Text('Menu', style: text.titleLarge?.semiBold),
-                ),
+              // Menu
+              _MenuSection(onTap: (type) {
+                final label = switch (type) {
+                  _MenuType.saved => 'Saved Items',
+                  _MenuType.edit => 'Edit Profile',
+                  _MenuType.settings => 'Settings',
+                  _MenuType.logout => 'Logout',
+                };
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$label tapped')));
+              }),
 
-                // Menu
-                _MenuSection(onTap: (type) {
-                  final label = switch (type) {
-                    _MenuType.saved => 'Saved Items',
-                    _MenuType.edit => 'Edit Profile',
-                    _MenuType.settings => 'Settings',
-                    _MenuType.logout => 'Logout',
-                  };
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$label tapped')));
-                }),
-
-                const SizedBox(height: AppSpacing.xl),
-              ],
-            ),
-          );
-        },
-      ),
+              const SizedBox(height: AppSpacing.xl),
+            ],
+          ),
+        );
+      }),
     );
   }
 }

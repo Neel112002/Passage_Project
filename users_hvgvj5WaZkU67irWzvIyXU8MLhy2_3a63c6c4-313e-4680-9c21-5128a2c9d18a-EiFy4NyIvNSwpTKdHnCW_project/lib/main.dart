@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:passage/theme.dart';
 import 'package:passage/nav.dart';
+import 'package:provider/provider.dart';
+import 'package:passage/services/item_store.dart';
 
 /// Main entry point for the application
 ///
@@ -16,13 +18,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Passage',
-      debugShowCheckedModeBanner: false,
-      theme: lightTheme,
-      darkTheme: darkTheme,
-      themeMode: ThemeMode.system,
-      routerConfig: AppRouter.router,
+    return ChangeNotifierProvider<ItemStore>(
+      create: (_) => ItemStore(),
+      child: MaterialApp.router(
+        title: 'Passage',
+        debugShowCheckedModeBanner: false,
+        theme: lightTheme,
+        darkTheme: darkTheme,
+        themeMode: ThemeMode.system,
+        routerConfig: AppRouter.router,
+      ),
     );
   }
 }

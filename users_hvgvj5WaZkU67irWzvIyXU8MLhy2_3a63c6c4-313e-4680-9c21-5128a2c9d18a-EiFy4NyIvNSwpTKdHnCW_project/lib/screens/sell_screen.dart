@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:passage/models/item_model.dart';
-import 'package:passage/services/item_service.dart';
 import 'package:passage/theme.dart';
+import 'package:provider/provider.dart';
+import 'package:passage/services/item_store.dart';
 
 class SellScreen extends StatefulWidget {
   const SellScreen({super.key, this.onPosted});
@@ -53,7 +54,7 @@ class _SellScreenState extends State<SellScreen> {
                 TextFormField(
                   controller: _titleCtrl,
                   textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(hintText: 'e.g. IKEA Desk, Calculus Book'),
+                  decoration: const InputDecoration(hintText: 'e.g. IKEA Desk, Calculus Book'),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Title is required' : null,
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -150,8 +151,10 @@ class _SellScreenState extends State<SellScreen> {
         condition: _condition,
         category: _category!,
         imageUrl: null,
+        description: _descCtrl.text.trim(),
+        createdAt: DateTime.now(),
       );
-      ItemService.instance.addItemAtTop(item);
+      context.read<ItemStore>().addItem(item);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Listing posted')));
         widget.onPosted?.call();

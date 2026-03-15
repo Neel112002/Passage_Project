@@ -6,6 +6,7 @@ import 'package:passage/widgets/item_card.dart';
 import 'package:passage/nav.dart';
 import 'package:provider/provider.dart';
 import 'package:passage/services/item_store.dart';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,8 +17,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _scrollController = ScrollController();
+  final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
+  Timer? _debounce;
   bool _isRefreshing = false;
   ItemCategory? _selectedCategory; // null means all
+  String _searchQuery = '';
 
   static const _categories = [
     ItemCategory.textbooks,
@@ -30,12 +35,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  List<ItemModel> _filtered(List<ItemModel> source) =>
-      _selectedCategory == null ? source : source.where((e) => e.category == _selectedCategory).toList();
+  List<ItemModel> _filtered(List<ItemModel> source) {
+    // First apply category filter
+    var list = _selectedCategory == null ? source : source.where((e) => e.category == _selectedCategory).toList();
+    // Then apply search filter if any
+    final q = _searchQuery.trim().toLowerCase();
+    if (q.isEmpty) return list;
+    return list.where((e) {
+      final title = e.title.toLowerCase();
+      final cat = _categoryLabel(e.category).toLowerCase();
+      return title.contains(q) || cat.contains(q);
+    }).toList();
+  }
 
   Future<void> _onRefresh() async {
     if (_isRefreshing) return;
@@ -45,6 +63,26 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _toggleBookmark(BuildContext context, ItemModel item) => context.read<ItemStore>().toggleBookmark(item.id);
+
+  void _onSearchChanged(String value, {bool immediate = false}) {
+    _debounce?.cancel();
+    if (immediate) {
+      setState(() => _searchQuery = value);
+      _scrollToTop();
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(() => _searchQuery = value);
+      _scrollToTop();
+    });
+  }
+
+  void _scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(0, duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+    }
+  }
 
   String _categoryLabel(ItemCategory c) => switch (c) {
         ItemCategory.textbooks => 'Textbooks',
@@ -65,11 +103,40 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text('Passage', style: Theme.of(context).textTheme.titleLarge?.semiBold),
         actions: [
-          IconButton(icon: const Icon(Icons.search), onPressed: () => _showSnack('Search coming soon')),
+          IconButton(icon: const Icon(Icons.search), onPressed: () => _searchFocusNode.requestFocus()),
           IconButton(icon: const Icon(Icons.chat_bubble_outline), onPressed: () => context.push('/login')),
         ],
       ),
       body: Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+          child: TextField(
+            controller: _searchController,
+            focusNode: _searchFocusNode,
+            onChanged: (v) {
+              setState(() {}); // Update clear icon visibility immediately
+              _onSearchChanged(v);
+            },
+            decoration: InputDecoration(
+              hintText: 'Search items...',
+              prefixIcon: Icon(Icons.search, color: colors.onSurfaceVariant),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(Icons.close, color: colors.onSurfaceVariant),
+                      onPressed: () {
+                        _searchController.clear();
+                        _onSearchChanged('', immediate: true);
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: colors.surfaceContainerHighest,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.lg), borderSide: BorderSide.none),
+            ),
+            textInputAction: TextInputAction.search,
+          ),
+        ),
         _CategoriesBar(
           categories: _categories,
           selected: _selectedCategory,
